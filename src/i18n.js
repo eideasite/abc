@@ -1,6 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext } from 'react'
-
 const tamil = {
   'Search accessibility settings': 'அணுகல்தன்மை அமைப்புகளைத் தேடுக', 'Text-to-speech': 'உரையைப் பேச்சாக மாற்றுதல்', 'Browser speech options': 'உலாவியின் பேச்சு விருப்பங்கள்', 'Text formatting options': 'உரை வடிவமைப்பு விருப்பங்கள்', 'Bold and outline text': 'தடித்த மற்றும் விளிம்புள்ள உரை', Display: 'காட்சி', 'Display size & text': 'காட்சி அளவு மற்றும் உரை', 'Display > Color contrast': 'காட்சி > நிற வேறுபாடு', Accessibility: 'அணுகல்தன்மை', 'Text-to-speech output': 'உரைப் பேச்சு வெளியீடு', 'Make text easier to distinguish.': 'உரையை எளிதில் வேறுபடுத்திக் காணும்படி செய்யவும்.', 'Speech uses voices available in this browser or device. TalkBack and system verbosity are managed in device settings.': 'இந்த உலாவி அல்லது சாதனத்தில் உள்ள குரல்களைப் பேச்சு வசதி பயன்படுத்தும். TalkBack மற்றும் பேச்சு அமைப்புகள் சாதன அமைப்புகளில் நிர்வகிக்கப்படும்.', 'Test text-to-speech': 'உரைப் பேச்சைச் சோதிக்கவும்', 'Text-to-speech is not supported by this browser.': 'இந்த உலாவியில் உரைப் பேச்சு வசதி இல்லை.', 'This is a sample of text to speech.': 'இது உரையைப் பேச்சாக மாற்றும் வசதிக்கான மாதிரி.', 'Speaking...': 'பேசுகிறது...', Stop: 'நிறுத்து',
   'Accessibility settings': 'அணுகல்தன்மை அமைப்புகள்', 'Size options': 'அளவு விருப்பங்கள்', 'Font size': 'எழுத்தளவு', 'Make text bigger or smaller': 'எழுத்தைச் சிறிதாகவோ பெரிதாகவோ மாற்றவும்', 'Display size': 'திரை அளவு', 'Make everything bigger or smaller': 'அனைத்தையும் சிறிதாகவோ பெரிதாகவோ மாற்றவும்', 'Style options': 'தோற்ற விருப்பங்கள்', 'Bold text': 'தடித்த எழுத்து', 'Outline text': 'எழுத்தைச் சுற்றி விளிம்பு', 'Add a black or white background around text to increase contrast': 'எழுத்து தெளிவாகத் தெரிய கருப்பு அல்லது வெள்ளை விளிம்பைச் சேர்க்கவும்', 'Reset settings': 'அமைப்புகளை மீட்டமை', Decrease: 'குறைக்கவும்', Increase: 'அதிகரிக்கவும்', 'Dark theme': 'இருண்ட தோற்றம்', 'Use a dark background for comfortable viewing.': 'வசதியாகப் பார்ப்பதற்கு இருண்ட பின்னணியைப் பயன்படுத்தவும்.', 'Use a dark background to make this writing space more comfortable. Your theme is saved on this device.': 'எழுத்துப் பணியிடத்தை வசதியாகப் பயன்படுத்த இருண்ட பின்னணியைத் தேர்ந்தெடுக்கவும். தோற்றம் இந்தச் சாதனத்தில் சேமிக்கப்படும்.', 'Use dark theme': 'இருண்ட தோற்றத்தைப் பயன்படுத்து', 'Theme style': 'தோற்ற வகை', Standard: 'சாதாரணம்', Expanded: 'விரிவாக்கம்', 'Use the app dark theme as designed.': 'இந்தப் பயன்பாட்டின் இருண்ட தோற்றத்தைப் பயன்படுத்தவும்.', 'Use stronger dark surfaces and contrast throughout this app.': 'இந்தப் பயன்பாட்டில் அதிக மாறுபாடுள்ள இருண்ட தோற்றத்தைப் பயன்படுத்தவும்.', 'Pure black': 'முழுக் கருப்பு', 'Pure black background for dark theme': 'இருண்ட தோற்றத்தில் முழுக் கருப்புப் பின்னணி', Timing: 'நேர அமைப்பு', Off: 'முடக்கு', 'Change the theme manually.': 'தோற்றத்தை கைமுறையாக மாற்றவும்.', Schedule: 'அட்டவணை', 'Turns on at custom time': 'குறிப்பிட்ட நேரத்தில் இயக்கப்படும்', 'Start time': 'தொடக்க நேரம்', 'End time': 'முடிவு நேரம்', 'The schedule follows this device local time while this app is open.': 'இந்தப் பயன்பாடு திறந்திருக்கும் போது அட்டவணை சாதனத்தின் உள்ளூர் நேரத்தைப் பின்பற்றும்.', 'Device modes can also turn on dark theme.': 'சாதனத்தின் பயன்முறைகளும் இருண்ட தோற்றத்தை இயக்கலாம்.', 'This website cannot read or change device modes. Its custom schedule follows this browser local time while the app is open.': 'இந்த இணையதளம் சாதனப் பயன்முறைகளைப் படிக்கவோ மாற்றவோ முடியாது. பயன்பாடு திறந்திருக்கும் போது தனிப்பயன் அட்டவணை உலாவியின் உள்ளூர் நேரத்தைப் பின்பற்றும்.',
@@ -8,6 +5,9 @@ const tamil = {
   'Article preview': 'கட்டுரை முன்னோட்டம்', 'Save as PDF': 'PDF ஆகச் சேமி', 'Choose Save as PDF in the browser print dialog.': 'அச்சிடும் சாளரத்தில் Save as PDF என்பதைத் தேர்ந்தெடுக்கவும்.', Close: 'மூடு',
   'Write a Post': 'இடுகை எழுத', 'Write an Article': 'கட்டுரை எழுத', Photo: 'புகைப்படம்', 'Write article': 'கட்டுரை எழுத',
   'Start writing a post': 'இடுகை எழுதத் தொடங்குங்கள்', Posts: 'இடுகைகள்', 'Local post': 'இந்த உலாவியில் மட்டும் சேமிக்கப்பட்டது',
+  'Copy post': 'இடுகையை நகலெடு', 'Post copied. Paste it wherever you need.': 'இடுகை நகலெடுக்கப்பட்டது. தேவையான இடத்தில் ஒட்டுங்கள்.',
+  'This post has no text to copy.': 'நகலெடுக்க இந்த இடுகையில் உரை இல்லை.',
+  'Could not copy the post. Select and copy the text instead.': 'இடுகையை நகலெடுக்க முடியவில்லை. உரையைத் தேர்ந்தெடுத்து நகலெடுக்கவும்.',
   Post: 'இடுகையிடு', 'Post saved in this browser.': 'இடுகை இந்த உலாவியில் சேமிக்கப்பட்டது.',
   'This creates a local post in this browser only.': 'இந்த இடுகை இந்த உலாவியில் மட்டும் சேமிக்கப்படும்.',
   'Article body': 'கட்டுரையின் உட்பகுதி',
@@ -15,7 +15,7 @@ const tamil = {
   'Write Article': 'கட்டுரை எழுதுக', Profile: 'சுயவிவரம்', 'Article Editor': 'கட்டுரை திருத்தி',
   'Focus mode': 'கவனக் குவிப்பு முறை', 'Exit focus mode': 'கவனக் குவிப்பு முறையை விட்டு வெளியேறு',
   'SEO Settings': 'SEO அமைப்புகள்', 'Published Post': 'வெளியிடப்பட்ட கட்டுரை', 'Articles Management': 'கட்டுரைகள் நிர்வாகம்',
-  'Open navigation': 'வழிசெலுத்தலைத் திறக்கவும்', 'Switch to light mode': 'பகல் பயன்முறைக்கு மாற்றவும்',
+  'Open navigation': 'வழிசெலுத்தலைத் திறக்கவும்', 'Close navigation': 'வழிசெலுத்தலை மூடவும்', 'Switch to light mode': 'பகல் பயன்முறைக்கு மாற்றவும்',
   'Choose language': 'மொழியைத் தேர்ந்தெடுக்கவும்',
   'Switch to night mode': 'இரவு பயன்முறைக்கு மாற்றவும்', 'Personal writing space': 'தனிப்பட்ட எழுத்து இடம்',
   'Add an image': 'படம் சேர்க்கவும்', 'Add an emoji': 'எமோஜி சேர்க்கவும்', 'Start writing an article': 'கட்டுரை எழுதத் தொடங்கவும்',
@@ -62,8 +62,8 @@ const tamil = {
   'Edit article': 'கட்டுரையைத் திருத்து', 'Share / publish': 'பகிர் / வெளியிடு', 'Schedule article': 'கட்டுரையைத் திட்டமிடு',
   'Discard draft': 'வரைவை நீக்கு', 'SEO settings': 'SEO அமைப்புகள்',
   'No articles yet': 'இன்னும் கட்டுரைகள் இல்லை',
-  'Start an article': 'கட்டுரையைத் தொடங்கவும்', Writer: 'எழுத்தாளர்', 'Create post': 'கட்டுரையைத் தொடங்கவும்',
-  'Write your post': 'உங்கள் கட்டுரையை எழுதுங்கள்', 'Remove image': 'படத்தை நீக்கவும்', 'Add to your post': 'கட்டுரையில் சேர்க்கவும்',
+  'Start an article': 'கட்டுரையைத் தொடங்கவும்', Writer: 'எழுத்தாளர்', 'Create post': 'இடுகையை உருவாக்கு',
+  'Write your post': 'உங்கள் இடுகையை எழுதுங்கள்', 'Remove image': 'படத்தை நீக்கவும்', 'Add to your post': 'இடுகையில் சேர்க்கவும்',
   'Continue to editor': 'திருத்திக்குத் தொடரவும்', 'This saves a local draft; it does not post online.': 'இது உலாவியில் வரைவைச் சேமிக்கும்; இணையத்தில் வெளியிடாது.',
   'Share article': 'கட்டுரையைப் பகிர்', 'External publishing is not connected': 'வெளிப்புற வெளியீட்டு இணைப்பு இல்லை',
   'This app does not publish to social media. You can copy or download the text, or record a local published status in this browser.': 'இந்தச் செயலி சமூக ஊடகங்களில் வெளியிடாது. உரையை நகலெடுக்கலாம் அல்லது பதிவிறக்கலாம்; இந்த உலாவியில் மட்டும் வெளியிட்டதாகக் குறிக்கலாம்.',
@@ -120,7 +120,34 @@ Object.assign(tamil, {
 
 Object.assign(tamil, {
   'YOUR WRITING': 'உங்கள் எழுத்து',
+  'External tools': 'வெளிப்புற கருவிகள்',
   'External AI tools': 'வெளிப்புற AI கருவிகள்',
+  'Enter opens 3 AIs and copies your prompt. Shift+Enter adds a line.': 'Enter அழுத்தினால் prompt copy ஆகி 3 AI-கள் திறக்கும். Shift+Enter புதிய வரியைச் சேர்க்கும்.',
+  'Enter opens AI tools and copies your prompt. Shift+Enter adds a line.': 'Enter அழுத்தினால் AI கருவிகள் திறந்து உங்கள் prompt நகலெடுக்கப்படும். Shift+Enter புதிய வரியைச் சேர்க்கும்.',
+  'Opening 3 AIs...': '3 AI-களைத் திறக்கிறது...',
+  'Opening AI...': 'AI-ஐத் திறக்கிறது...',
+  'Choose an AI': 'ஒரு AI-ஐத் தேர்ந்தெடுக்கவும்',
+  'Search 3 AIs': '3 AI-களில் தேடவும்',
+  'Open in all 3 AIs': '3 AI-களிலும் திற',
+  'Copied to clipboard and opened all 3 AI tabs. Paste in each tab.': 'Clipboard-க்கு copy செய்து 3 AI tab-களும் திறக்கப்பட்டன. ஒவ்வொரு tab-இலும் paste செய்யவும்.',
+  'Could not open all 3 AI tabs or copy your text. Allow pop-ups and clipboard access, then try again.': '3 AI tab-களைத் திறக்க அல்லது text-ஐ copy செய்ய முடியவில்லை. Pop-up மற்றும் clipboard அனுமதியை இயக்கி மீண்டும் முயற்சிக்கவும்.',
+  'Which AI would you like to use?': 'எந்த AI-ஐப் பயன்படுத்த விரும்புகிறீர்கள்?',
+  'Choose one AI to open. Your prompt will be copied for you.': 'திறக்க வேண்டிய ஒரு AI-ஐத் தேர்ந்தெடுக்கவும். உங்கள் prompt தானாக நகலெடுக்கப்படும்.',
+  'Cancel': 'ரத்துசெய்',
+  'Copied your prompt and opened {provider}. Paste it there.': 'உங்கள் prompt நகலெடுக்கப்பட்டு {provider} திறக்கப்பட்டது. அங்கே ஒட்டவும்.',
+  'Could not open the AI or copy your prompt. Allow pop-ups and clipboard access, then try again.': 'AI-ஐத் திறக்க அல்லது prompt-ஐ நகலெடுக்க முடியவில்லை. Pop-up மற்றும் clipboard அனுமதியை இயக்கி மீண்டும் முயற்சிக்கவும்.',
+  'Open in a new tab.': 'புதிய tab-இல் திறக்கவும்.',
+  'Prompt canvas': 'Prompt எழுதும் இடம்',
+  'Write your prompt': 'உங்கள் prompt-ஐ எழுதுங்கள்',
+  'Copy prompt': 'Prompt-ஐ நகலெடு',
+  'Clear prompt': 'Prompt-ஐ அழி',
+  'Choose an AI service': 'AI சேவையைத் தேர்ந்தெடுக்கவும்',
+  Open: 'திற',
+  'Prompt copied. Paste it into an AI service when you are ready.': 'Prompt நகலெடுக்கப்பட்டது. தயாரானதும் AI சேவையில் ஒட்டுங்கள்.',
+  'Prompt copied. Paste it into the AI tab, then send it there.': 'Prompt நகலெடுக்கப்பட்டது. AI tab-இல் ஒட்டி, அங்கே அனுப்புங்கள்.',
+  'Prompt copied. Paste it into each AI tab, then send it there.': 'Prompt நகலெடுக்கப்பட்டது. ஒவ்வொரு AI tab-இலும் ஒட்டி, அங்கே அனுப்புங்கள்.',
+  'Could not copy the prompt. It remains saved here; select it and copy it manually.': 'Prompt-ஐ நகலெடுக்க முடியவில்லை. இது இங்கே சேமிக்கப்பட்டுள்ளது; தேர்ந்தெடுத்து கைமுறையாக நகலெடுக்கவும்.',
+  'Could not open an AI tab. Allow pop-ups and try again.': 'AI tab-ஐ திறக்க முடியவில்லை. Pop-up-களை அனுமதித்து மீண்டும் முயற்சிக்கவும்.',
   'These services operate separately from your writing workspace. This app does not send drafts or article content when you open a tool.': 'இந்த சேவைகள் உங்கள் எழுதும் இடத்திலிருந்து தனியாக இயங்கும். கருவியைத் திறக்கும்போது உங்கள் வரைவுகள் அல்லது கட்டுரை உள்ளடக்கம் அனுப்பப்படாது.',
   'Ask with AI': 'AI-யிடம் கேளுங்கள்',
   'Got it': 'சரி',
@@ -144,15 +171,73 @@ Object.assign(tamil, {
   'Only the prompt you type here is shared. Your drafts and article content are not sent.': 'நீங்கள் இங்கே எழுதும் prompt மட்டுமே பகிரப்படும். உங்கள் draft அல்லது கட்டுரை உள்ளடக்கம் அனுப்பப்படாது.',
 })
 
+Object.assign(tamil, {
+  Highlights: 'சிறப்பம்சங்கள்',
+  'Add collection': 'தொகுப்பைச் சேர்',
+  'Edit highlights': 'சிறப்பம்சங்களைத் திருத்து',
+  'Add photos to create your first highlight.': 'உங்கள் முதல் சிறப்பம்சத்தை உருவாக்கப் படங்களைச் சேர்க்கவும்.',
+  'No highlights yet': 'இன்னும் சிறப்பம்சங்கள் இல்லை',
+  'Add new': 'புதியதைச் சேர்',
+  'Edit highlight collection': 'சிறப்பம்சத் தொகுப்பைத் திருத்து',
+  'Back to highlights': 'சிறப்பம்சங்களுக்குத் திரும்பு',
+  'Close dialog': 'சாளரத்தை மூடு',
+  Cover: 'அட்டைப்படம்',
+  Title: 'தலைப்பு',
+  Save: 'சேமி',
+  Photos: 'படங்கள்',
+  'Add photos': 'படங்களைச் சேர்',
+  'Add more': 'மேலும் சேர்',
+  'Saved quotes': 'சேமித்த மேற்கோள்கள்',
+  'Choose an emoji': 'எமோஜியைத் தேர்ந்தெடுக்கவும்',
+  'Write a post': 'இடுகை எழுதுங்கள்',
+  'Voice dictation': 'குரல் மூலம் எழுதுங்கள்',
+  'Stop dictation': 'குரல் பதிவை நிறுத்து',
+  'Posting...': 'இடுகையிடப்படுகிறது...',
+  'Reading photos...': 'படங்கள் படிக்கப்படுகின்றன...',
+  'Highlight title': 'சிறப்பம்சத் தலைப்பு',
+  'Post image': 'இடுகைப் படம்',
+  'Could not read that image.': 'அந்தப் படத்தைப் படிக்க முடியவில்லை.',
+  'Add a title for this highlight.': 'இந்தச் சிறப்பம்சத்திற்குத் தலைப்பு சேர்க்கவும்.',
+  'Add at least one photo or saved quote.': 'குறைந்தது ஒரு படத்தையாவது அல்லது சேமித்த மேற்கோளையாவது சேர்க்கவும்.',
+  'A highlight collection can include up to 8 photos.': 'ஒரு சிறப்பம்சத் தொகுப்பில் அதிகபட்சம் 8 படங்களைச் சேர்க்கலாம்.',
+  'Choose PNG, JPEG, GIF, or WebP images up to 4 MB each.': 'ஒவ்வொன்றும் 4 MB வரை உள்ள PNG, JPEG, GIF அல்லது WebP படங்களைத் தேர்ந்தெடுக்கவும்.',
+  'Highlight collection saved.': 'சிறப்பம்சத் தொகுப்பு சேமிக்கப்பட்டது.',
+  'Collection title': 'தொகுப்பின் தலைப்பு',
+  'Highlight image': 'சிறப்பம்சப் படம்',
+  'Add a collection to keep article images and quotes together.': 'கட்டுரைப் படங்களையும் மேற்கோள்களையும் ஒன்றாக வைக்க ஒரு தொகுப்பைச் சேர்க்கவும்.',
+  Settings: 'அமைப்புகள்',
+  'Testing speed…': 'வேகம் சோதிக்கப்படுகிறது…',
+})
+Object.assign(tamil, {
+  'Weak connection': 'பலவீனமான இணைப்பு',
+  'Okay connection': 'சுமாரான இணைப்பு',
+  'Good connection': 'நல்ல இணைப்பு',
+  'Fast connection': 'வேகமான இணைப்பு',
+  Offline: 'இணையமில்லை',
+  Connected: 'இணைக்கப்பட்டுள்ளது',
+  'Connection quality unavailable': 'இணைப்பு தரம் கிடைக்கவில்லை',
+  'Network status details': 'இணைய நிலை விவரங்கள்',
+  'Close network details': 'இணைய விவரங்களை மூடு',
+  'Download speed': 'பதிவிறக்க வேகம்',
+  'Not measured': 'அளவிடப்படவில்லை',
+  Latency: 'தாமதம்',
+  "Speed tests use a temporary sample. Websites cannot read your device's cellular signal bars.": 'வேகச் சோதனை தற்காலிக மாதிரியைப் பயன்படுத்தும். இணையதளங்களால் உங்கள் சாதனத்தின் செல்லுலார் சிக்னல் அளவைப் படிக்க முடியாது.',
+  'post is saved locally and waiting to sync.': 'பதிவு உள்ளூரில் சேமிக்கப்பட்டு ஒத்திசைவுக்காகக் காத்திருக்கிறது.',
+  'posts are saved locally and waiting to sync.': 'பதிவுகள் உள்ளூரில் சேமிக்கப்பட்டு ஒத்திசைவுக்காகக் காத்திருக்கின்றன.',
+  'No upload server is connected yet; your local copy stays safe.': 'பதிவேற்ற சேவையகம் இன்னும் இணைக்கப்படவில்லை; உள்ளூர் நகல் பாதுகாப்பாக இருக்கும்.',
+  'Posts are saved in this browser. Cloud upload is not configured.': 'பதிவுகள் இந்த உலாவியில் சேமிக்கப்படுகின்றன. மேகப் பதிவேற்றம் அமைக்கப்படவில்லை.',
+  'Post saved offline. Sync is pending until an upload service is connected.': 'இணையமின்றி பதிவு சேமிக்கப்பட்டது. பதிவேற்ற சேவை இணைக்கப்படும் வரை ஒத்திசைவு காத்திருக்கும்.',
+  'Sync pending': 'ஒத்திசைவு காத்திருக்கிறது',
+  'Saving post...': 'பதிவு சேமிக்கப்படுகிறது...',
+})
+
+Object.assign(tamil, {
+  'Font family': 'எழுத்துரு வகை',
+  'Choose the app font.': 'செயலிக்கான எழுத்துருவைத் தேர்ந்தெடுக்கவும்.',
+})
+
 const english = Object.fromEntries(Object.entries(tamil).map(([key, value]) => [value, key]))
-const LanguageContext = createContext('en')
 
-export function LanguageProvider({ language, children }) {
-  return <LanguageContext.Provider value={language}>{children}</LanguageContext.Provider>
-}
-
-export function useLanguage() {
-  const language = useContext(LanguageContext)
-  const t = useCallback((text) => language === 'ta' ? (tamil[text] || text) : (english[text] || text), [language])
-  return { language, t }
+export function translate(text, language = 'en') {
+  return language === 'ta' ? (tamil[text] || text) : (english[text] || text)
 }

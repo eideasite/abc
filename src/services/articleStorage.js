@@ -3,6 +3,8 @@ import { createArticle } from '../utils/article.js'
 export const WORKSPACE_KEY = 'jeyamohan-articles-workspace-v1'
 const LEGACY_DRAFT_KEY = 'ezhuthu-draft-v1'
 const WORKSPACE_RECOVERY_KEY = 'jeyamohan-articles-workspace-recovery-v1'
+const DEFAULT_PROFILE_NAME = 'Jeyamohan'
+const LEGACY_DEFAULT_PROFILE_NAMES = new Set(['ஜெயமோகன்', 'ஜெய஺eோகன்'])
 let lastObservedWorkspaceRaw
 let workspaceBaselineLoaded = false
 let workspaceWriteConflict = false
@@ -19,8 +21,9 @@ const dateOrDefault = (date, fallback) => typeof date === 'string' && Number.isF
 
 function normalizeProfile(value, defaults) {
   const profile = isRecord(value) ? value : {}
+  const name = typeof profile.name === 'string' ? profile.name : defaults.name
   return {
-    name: typeof profile.name === 'string' ? profile.name : defaults.name,
+    name: LEGACY_DEFAULT_PROFILE_NAMES.has(name) ? defaults.name : name,
     bio: typeof profile.bio === 'string' ? profile.bio : '',
     avatar: typeof profile.avatar === 'string' && profile.avatar ? profile.avatar : defaults.avatar,
   }
@@ -110,6 +113,7 @@ function readLegacyDraft() {
 
 export function loadWorkspace() {
   const defaults = defaultWorkspace()
+  defaults.profile.name = DEFAULT_PROFILE_NAME
   const stored = parseStorageValue(WORKSPACE_KEY)
   lastObservedWorkspaceRaw = stored.raw
   workspaceBaselineLoaded = true
