@@ -4,7 +4,11 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import {
   Archive,
   Bookmark,
+  Check,
   ChevronLeft,
+  Copy,
+  Download,
+  ExternalLink,
   FileText,
   House,
   Info,
@@ -20,6 +24,7 @@ import {
 } from 'lucide-vue-next'
 import { useWorkspace } from './stores/workspace.js'
 import { getWorkspaceRecoveryData } from './services/articleStorage.js'
+import { requestPersistentBrowserStorage } from './services/browserStorage.js'
 import { runNetworkSpeedTest } from './services/networkSpeedTest.js'
 import { translate } from './i18n.js'
 import GoogleAiSearch from './components/common/GoogleAiSearch.vue'
@@ -29,6 +34,9 @@ const route = useRoute()
 const router = useRouter()
 const { workspace, posts, saveStatus, theme, language, recoveryState, sessionStatus, setSessionStatus } = useWorkspace()
 const mobileMenuOpen = ref(false)
+const contactUrl = 'https://jeyamohanme.vercel.app/'
+const contactUrlCopied = ref(false)
+const contactUrlCopyFailed = ref(false)
 const mobileMenuButton = ref(null)
 const mobileNavigationElement = ref(null)
 const networkDetailsOpen = ref(false)
@@ -36,6 +44,7 @@ const errorNotice = ref(null)
 const clock = ref('')
 const online = ref(navigator.onLine)
 const networkTest = ref(null)
+const browserStorageStatus = ref('checking')
 const connectionInfo = ref(readConnectionInfo())
 let clockTimer
 let noticeTimer
@@ -48,12 +57,49 @@ const navItems = [
   { name: 'articles', label: 'Articles Management', icon: FileText },
   { name: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
   { name: 'archive', label: 'Archive', icon: Archive },
+  { name: 'backup', label: 'Backup and restore', icon: Download },
   { name: 'profile', label: 'Profile', icon: Settings },
 ]
 const pageTitle = computed(() => translate(route.meta.title || 'Jeyamohan Articles', language.value))
 const profileName = computed(() => workspace.value.profile.name || 'Jeyamohan')
 const t = (text) => translate(text, language.value)
 const pendingSyncCount = computed(() => posts.value.filter((post) => post.syncStatus === 'pending').length)
+
+async function copyContactUrl() {
+  contactUrlCopied.value = false
+  contactUrlCopyFailed.value = false
+  try {
+    await navigator.clipboard?.writeText(contactUrl)
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+    contactUrlCopied.value = true
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = contactUrl
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.append(textarea)
+    textarea.select()
+    try {
+      contactUrlCopied.value = document.execCommand('copy')
+      contactUrlCopyFailed.value = !contactUrlCopied.value
+    } catch {
+      contactUrlCopyFailed.value = true
+    } finally {
+      textarea.remove()
+    }
+  }
+}
+const browserStorageStatusLabel = computed(() => ({
+  checking: 'Checking storage protection',
+  persistent: 'Protected from automatic cleanup',
+  'best-effort': 'May be cleared by browser',
+  unsupported: 'Browser cleanup protection unavailable',
+  unavailable: 'Could not check storage protection',
+}[browserStorageStatus.value]))
+const browserStorageStatusDescription = computed(() => browserStorageStatus.value === 'persistent'
+  ? 'Persistent storage is enabled. Clearing site data, uninstalling the browser, or losing this device can still remove these files.'
+  : 'Data is saved on this browser and device. Browser cleanup, clearing site data, uninstalling the browser, or losing this device can remove it.')
 const networkQuality = computed(() => {
   if (!online.value) return 'offline'
   const speed = networkTest.value?.status === 'success'
@@ -202,6 +248,9 @@ function downloadRecoveryCopy() {
 }
 
 onMounted(() => {
+  requestPersistentBrowserStorage().then((status) => {
+    browserStorageStatus.value = status
+  })
   updateClock()
   clockTimer = window.setInterval(updateClock, 30000)
   window.addEventListener('online', onOnlineChange)
@@ -315,17 +364,10 @@ onUnmounted(() => {
       <GoogleAiSearch
         class="desktop-google-search"
         :label="t('Search Google AI')"
-        :error-label="t('Could not open all 3 AI tabs or copy your text. Allow pop-ups and clipboard access, then try again.')"
-        :loading-label="t('Opening 3 AIs...')"
-        :single-loading-label="t('Opening AI...')"
-        :success-label="t('Copied to clipboard and opened all 3 AI tabs. Paste in each tab.')"
-        :single-success-label="t('Copied your prompt and opened {provider}. Paste it there.')"
-        :single-error-label="t('Could not open the AI or copy your prompt. Allow pop-ups and clipboard access, then try again.')"
-        :picker-title="t('Which AI would you like to use?')"
-        :picker-description="t('Choose one AI to open. Your prompt will be copied for you.')"
-        :cancel-label="t('Cancel')"
-        :submit-label="t('Search 3 AIs')"
-        :mobile-submit-label="t('Choose an AI')"
+        :error-label="t('Could not open Google AI Mode. Allow pop-ups, then try again.')"
+        :loading-label="t('Opening Google AI Mode...')"
+        :success-label="t('Opened Google AI Mode with your query.')"
+        :submit-label="t('Search Google AI')"
       />
       <div class="header-tools">
         <span class="header-greeting">{{ profileName }}</span>
@@ -416,7 +458,13 @@ onUnmounted(() => {
       >
         {{ networkTest?.status === 'running' ? 'Testing…' : t('Run speed test') }}
       </button>
-      <span class="status-save">{{ t(saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Saved in this browser' : saveStatus === 'conflict' ? 'Another tab changed this workspace.' : 'Could not save') }}</span>
+      <span
+        class="status-save"
+        :title="t(browserStorageStatusDescription)"
+      >
+        <span>{{ t(saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Saved in this browser' : saveStatus === 'conflict' ? 'Another tab changed this workspace.' : 'Could not save') }}</span>
+        <span aria-live="polite">· {{ t(browserStorageStatusLabel) }}</span>
+      </span>
     </div>
 
     <section
@@ -512,7 +560,7 @@ onUnmounted(() => {
             class="nav-link"
             :class="{ active: route.name === 'external-ai-tools' }"
           >
-            <Search :size="18" /><span>{{ t('External AI tools') }}</span>
+            <Search :size="18" /><span>{{ t('Multi-AI Search') }}</span>
           </RouterLink>
         </nav>
         <div class="sidebar-save-state">
@@ -568,7 +616,7 @@ onUnmounted(() => {
               class="nav-link"
               @click="mobileMenuOpen = false"
             >
-              <Search :size="18" /><span>{{ t('External AI tools') }}</span>
+              <Search :size="18" /><span>{{ t('Multi-AI Search') }}</span>
             </RouterLink>
           </nav>
         </div>
@@ -579,20 +627,13 @@ onUnmounted(() => {
           v-if="route.name === 'compose'"
           class="mobile-home-search"
           :label="t('Search Google AI')"
-          :error-label="t('Could not open all 3 AI tabs or copy your text. Allow pop-ups and clipboard access, then try again.')"
-          :loading-label="t('Opening 3 AIs...')"
-          :single-loading-label="t('Opening AI...')"
-          :success-label="t('Copied to clipboard and opened all 3 AI tabs. Paste in each tab.')"
-          :single-success-label="t('Copied your prompt and opened {provider}. Paste it there.')"
-          :single-error-label="t('Could not open the AI or copy your prompt. Allow pop-ups and clipboard access, then try again.')"
-          :picker-title="t('Which AI would you like to use?')"
-          :picker-description="t('Choose one AI to open. Your prompt will be copied for you.')"
-          :cancel-label="t('Cancel')"
-          :submit-label="t('Search 3 AIs')"
-          :mobile-submit-label="t('Choose an AI')"
+          :error-label="t('Could not open Google AI Mode. Allow pop-ups, then try again.')"
+          :loading-label="t('Opening Google AI Mode...')"
+          :success-label="t('Opened Google AI Mode with your query.')"
+          :submit-label="t('Search Google AI')"
         />
         <div
-          v-if="route.name !== 'compose'"
+          v-if="route.name !== 'compose' && route.name !== 'privacy-policy'"
           class="mobile-page-title"
         >
           <span class="brand-mark">ஜெ</span><strong>{{ pageTitle }}</strong>
@@ -613,8 +654,52 @@ onUnmounted(() => {
         </section>
         <RouterView />
         <footer class="app-footer">
-          <span>© {{ new Date().getFullYear() }} Jeyamohan. All rights reserved.</span>
-          <a href="mailto:jeyamohan98@gmail.com">Contact</a>
+          <div class="footer-contact-row">
+            <span>{{ t('Contact us:') }}</span>
+            <a
+              :href="contactUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ contactUrl }} <ExternalLink
+                :size="14"
+                aria-hidden="true"
+              />
+            </a>
+            <button
+              class="footer-copy-button"
+              type="button"
+              :aria-label="t(contactUrlCopied ? 'Contact URL copied' : 'Copy contact URL')"
+              :title="t(contactUrlCopied ? 'Copied' : 'Copy contact URL')"
+              @click="copyContactUrl"
+            >
+              <Check
+                v-if="contactUrlCopied"
+                :size="16"
+                aria-hidden="true"
+              />
+              <Copy
+                v-else
+                :size="16"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+          <span
+            v-if="contactUrlCopyFailed"
+            class="footer-copy-status"
+            role="status"
+          >{{ t('Copy failed. Select the contact URL to copy it.') }}</span>
+          <span
+            v-else-if="contactUrlCopied"
+            class="footer-copy-status"
+            role="status"
+          >{{ t('Contact URL copied') }}</span>
+          <RouterLink
+            class="footer-policy-link"
+            :to="{ name: 'privacy-policy' }"
+          >{{ t('Privacy Policy') }}</RouterLink>
+          <span class="footer-copyright">© {{ new Date().getFullYear() }} Jeyamohan Manoharan. {{ t('All rights reserved.') }}</span>
         </footer>
       </main>
     </div>

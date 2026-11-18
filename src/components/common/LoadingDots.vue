@@ -1,11 +1,15 @@
 <template>
   <span
-    class="loading-dots"
+    class="loading-dots loading-task-hunter"
     aria-hidden="true"
   >
-    <span
-      v-for="dot in 4"
-      :key="dot"
+    <Bird
+      :size="18"
+      :stroke-width="2.4"
     />
   </span>
 </template>
+
+<script setup>
+import { Bird } from 'lucide-vue-next'
+</script>

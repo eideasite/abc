@@ -17,7 +17,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['open-manager', 'edit-collection', 'open-article'])
+const emit = defineEmits(['open-manager', 'preview-collection', 'edit-collection', 'open-article'])
 const t = (text) => translate(text, props.language)
 
 function openHighlight(articleId) {
@@ -39,8 +39,8 @@ function openHighlight(articleId) {
       <button
         class="highlight-collection-preview"
         type="button"
-        :aria-label="`${t('Edit highlights')}: ${collection.title}`"
-        @click="emit('edit-collection', collection)"
+        :aria-label="`${t('Preview')}: ${collection.title}`"
+        @click="emit('preview-collection', collection)"
       >
         <span
           v-if="collection.items.length"
@@ -67,6 +67,13 @@ function openHighlight(articleId) {
           :size="17"
           aria-hidden="true"
         />
+      </button>
+      <button
+        class="text-button highlight-card-edit"
+        type="button"
+        @click="emit('edit-collection', collection)"
+      >
+        {{ t('Edit') }}
       </button>
       <button
         v-for="highlight in collection.articleHighlights || []"

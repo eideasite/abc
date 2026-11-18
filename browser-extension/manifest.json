@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Jeyamohan AI Prompt Handoff",
+  "version": "1.0.0",
+  "description": "Fills and submits a prompt opened from Jeyamohan Articles.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://meta.ai/*",
+        "https://www.meta.ai/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

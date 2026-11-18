@@ -12,6 +12,9 @@ import {
   Copy,
   ExternalLink,
   FilePlus2,
+  Maximize2,
+  Minimize2,
+  MoreVertical,
   House,
   ImagePlus,
   Mic,
@@ -23,12 +26,16 @@ import {
   Smile,
   Sparkles,
   Trash2,
+  Undo2,
+  Redo2,
   X,
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace.js'
 import { articleCanPublish } from '../utils/validation.js'
 import { createId } from '../utils/createId.js'
 import { createArticleHighlight, createHighlightCollection } from '../services/highlightStorage.js'
+import { loadPostDraft, savePostDraft } from '../services/postStorage.js'
+import { estimateBrowserStorage } from '../services/browserStorage.js'
 import { formatDate } from '../utils/formatDate.js'
 import { getArticleExcerpt, getArticleTitle, getWordCount } from '../utils/article.js'
 import { richTextToHtml, richTextToPlainText, sanitizeRichTextHtml } from '../utils/richText.js'
@@ -38,6 +45,7 @@ import { translate } from '../i18n.js'
 import HomeHighlightsSection from '../components/home/HomeHighlightsSection.vue'
 import LoadingDots from '../components/common/LoadingDots.vue'
 import AiProviderPicker from '../components/common/AiProviderPicker.vue'
+import ReadAloudControls from '../components/common/ReadAloudControls.vue'
 import ProfileAvatar from '../components/common/ProfileAvatar.vue'
 import { AI_PROVIDERS, openAiProviderTabs } from '../services/aiSearch.js'
 
@@ -55,14 +63,32 @@ const {
   createNewArticle,
   discardArticle,
   createPost,
+  updatePost: persistPostChanges,
   toggleBookmark,
   toggleShortcut,
   saveHighlightCollections,
   setSessionStatus,
 } = useWorkspace()
 
-const postText = ref('')
+const postDraftStorageError = ref(false)
+let initialPostDraft = ''
+try {
+  initialPostDraft = loadPostDraft()
+} catch {
+  postDraftStorageError.value = true
+}
+const postText = ref(initialPostDraft)
+watch(postText, (text) => {
+  postDraftStorageError.value = !savePostDraft(text)
+}, { flush: 'sync' })
 const postImage = ref(null)
+const editingPost = ref(null)
+const postEditText = ref('')
+const postEditImage = ref(null)
+const activePostText = computed(() => editingPost.value ? postEditText.value : postText.value)
+const activePostImage = computed(() => editingPost.value ? postEditImage.value : postImage.value)
+const postMenuId = ref('')
+const postStorageDetailsOpen = ref(false)
 const postSaving = ref(false)
 const postDialogOpen = ref(false)
 const postTextArea = ref(null)
@@ -71,6 +97,9 @@ const imageInput = ref(null)
 const recognition = ref(null)
 const dictating = ref(false)
 const editorElement = ref(null)
+const bodyUndoStack = ref([])
+const bodyRedoStack = ref([])
+let lastEditorBody = ''
 const articleFilter = ref('all')
 const dialog = ref(null)
 const scheduledAt = ref('')
@@ -79,9 +108,17 @@ const highlightText = ref('')
 const selectedCollectionId = ref('')
 const highlightManagerView = ref('closed')
 const highlightDraft = ref(null)
+const highlightPreview = ref(null)
 const highlightImageInput = ref(null)
 const highlightPhotosLoading = ref(false)
 const profileForm = ref({ ...workspace.value.profile })
+watch(profileForm, (profile) => {
+  const currentProfile = workspace.value.profile
+  if (profile.name === currentProfile.name
+    && profile.bio === currentProfile.bio
+    && profile.avatar === currentProfile.avatar) return
+  workspace.value.profile = { ...profile }
+}, { deep: true, flush: 'sync' })
 const externalAiPrompt = ref('')
 const externalAiPromptSearching = ref(false)
 const externalAiPromptStorageError = ref(false)
@@ -99,7 +136,17 @@ const fontFamilyOptions = [
 function getFontFamilyOption(value) {
   return fontFamilyOptions.find((option) => option.value === value) || fontFamilyOptions[0]
 }
-const accessibility = ref({ fontScale: 1, fontFamily: 'inter', boldText: false, outlineText: false })
+const accessibility = ref({
+  fontScale: 1,
+  fontFamily: 'inter',
+  boldText: false,
+  outlineText: false,
+  highContrast: false,
+  reduceBlur: false,
+  reduceMotion: false,
+  removeAnimations: false,
+  colorFilter: 'none',
+})
 const message = ref('')
 const messageTimer = ref()
 const externalAiPromptStorageKey = 'jeyamohan-external-ai-prompt-v1'
@@ -114,18 +161,46 @@ try {
       fontFamily: getFontFamilyOption(savedAccessibility.fontFamily).value,
       boldText: savedAccessibility.boldText === true,
       outlineText: savedAccessibility.outlineText === true,
+      highContrast: savedAccessibility.highContrast === true,
+      reduceBlur: savedAccessibility.reduceBlur === true,
+      reduceMotion: savedAccessibility.reduceMotion === true,
+      removeAnimations: savedAccessibility.removeAnimations === true,
+      colorFilter: ['none', 'invert', 'grayscale', 'low-saturation'].includes(savedAccessibility.colorFilter)
+        ? savedAccessibility.colorFilter
+        : 'none',
     }
   }
 } catch {
-  accessibility.value = { fontScale: 1, fontFamily: 'inter', boldText: false, outlineText: false }
+  accessibility.value = {
+    fontScale: 1,
+    fontFamily: 'inter',
+    boldText: false,
+    outlineText: false,
+    highContrast: false,
+    reduceBlur: false,
+    reduceMotion: false,
+    removeAnimations: false,
+    colorFilter: 'none',
+  }
 }
 
 const page = computed(() => String(route.name || 'not-found'))
+const FOCUS_MODE_STORAGE_KEY = 'jeyamohan-focus-mode-v1'
+const focusMode = ref(false)
+try {
+  focusMode.value = localStorage.getItem(FOCUS_MODE_STORAGE_KEY) === 'enabled'
+} catch {
+  focusMode.value = false
+}
 const currentArticle = computed(() => {
   const requestedId = typeof route.query.article === 'string' ? route.query.article : ''
   return workspace.value.articles.find((article) => article.id === requestedId)
     || workspace.value.articles[0]
     || null
+})
+const readAloudText = computed(() => {
+  if (!currentArticle.value) return ''
+  return `${getArticleTitle(currentArticle.value)}\n\n${richTextToPlainText(currentArticle.value.body || '')}`.trim()
 })
 const activeArticles = computed(() => workspace.value.articles.filter((article) => !article.archived))
 const archivedArticles = computed(() => workspace.value.articles.filter((article) => article.archived))
@@ -154,17 +229,59 @@ const articleBodyText = computed(() => getArticleExcerpt(currentArticle.value?.b
 const wordCount = computed(() => getWordCount(currentArticle.value?.body || ''))
 const dateLocale = computed(() => language.value === 'ta' ? 'ta-IN' : 'en-GB')
 const t = (text) => translate(text, language.value)
+const readAloudLabels = computed(() => ({
+  readAloud: t('Read aloud'),
+  play: t('Play'),
+  pause: t('Pause'),
+  resume: t('Resume'),
+  stop: t('Stop'),
+  voice: t('Preferred voice'),
+  systemVoice: t('Use system voice'),
+  speed: t('Speech rate'),
+  progress: t('Reading progress'),
+  speaking: t('Speaking...'),
+  paused: t('Paused'),
+  finished: t('Finished reading.'),
+  unsupported: t('Text-to-speech is not supported by this browser.'),
+  failed: t('Read aloud could not continue. Try another voice or restart playback.'),
+}))
 const profileName = computed(() => workspace.value.profile.name || 'Jeyamohan')
+const browserStorageEstimate = ref({ status: 'idle', usage: 0, quota: 0 })
+const browserStorageUsageRatio = computed(() => browserStorageEstimate.value.quota
+  ? Math.min(1, browserStorageEstimate.value.usage / browserStorageEstimate.value.quota)
+  : 0)
 const composerPlaceholder = computed(() => t("What's on your mind, {name}?").replace('{name}', profileName.value))
 const formattedBody = computed(() => richTextToHtml(currentArticle.value?.body || ''))
 const selectedArticle = computed(() => workspace.value.articles.find((article) => article.id === dialog.value?.articleId) || currentArticle.value)
 const highlightedCollection = computed(() => highlights.value.find((item) => item.id === selectedCollectionId.value))
+
+function formatStorageSize(bytes) {
+  const megabytes = bytes / (1024 * 1024)
+  return megabytes >= 1024 ? `${(megabytes / 1024).toFixed(2)} GB` : `${megabytes.toFixed(0)} MB`
+}
+
+async function refreshBrowserStorageEstimate() {
+  browserStorageEstimate.value = { ...browserStorageEstimate.value, status: 'loading' }
+  try {
+    const estimate = await estimateBrowserStorage()
+    browserStorageEstimate.value = { status: 'ready', ...estimate }
+  } catch {
+    browserStorageEstimate.value = { status: 'unavailable', usage: 0, quota: 0 }
+  }
+}
 
 watch(accessibility, (settings) => {
   document.documentElement.style.setProperty('--app-font-scale', String(settings.fontScale))
   document.documentElement.style.setProperty('--app-font-family', getFontFamilyOption(settings.fontFamily).css)
   document.documentElement.classList.toggle('accessibility-bold', settings.boldText)
   document.documentElement.classList.toggle('accessibility-outline', settings.outlineText)
+  document.documentElement.classList.toggle('accessibility-high-contrast', settings.highContrast)
+  document.documentElement.classList.toggle('accessibility-reduce-blur', settings.reduceBlur)
+  document.documentElement.classList.toggle('accessibility-reduce-motion', settings.reduceMotion)
+  document.documentElement.classList.toggle('accessibility-no-animations', settings.removeAnimations)
+  document.documentElement.classList.toggle('accessibility-filter-invert', settings.colorFilter === 'invert')
+  document.documentElement.classList.toggle('accessibility-filter-grayscale', settings.colorFilter === 'grayscale')
+  document.documentElement.classList.toggle('accessibility-filter-low-saturation', settings.colorFilter === 'low-saturation')
   try {
     localStorage.setItem('jeyamohan-accessibility-settings-v1', JSON.stringify(settings))
   } catch {
@@ -177,6 +294,27 @@ function showMessage(text) {
   window.clearTimeout(messageTimer.value)
   messageTimer.value = window.setTimeout(() => { message.value = '' }, 3500)
 }
+
+function updateFocusModePageClass() {
+  document.documentElement.classList.toggle(
+    'writing-focus-mode',
+    page.value === 'editor' && focusMode.value,
+  )
+}
+
+watch(focusMode, (enabled) => {
+  try {
+    localStorage.setItem(FOCUS_MODE_STORAGE_KEY, enabled ? 'enabled' : 'disabled')
+  } catch {
+    showMessage(t('Focus mode preference could not be saved in this browser.'))
+  }
+  updateFocusModePageClass()
+}, { flush: 'sync' })
+
+watch(page, (currentPage) => {
+  if (currentPage === 'profile') refreshBrowserStorageEstimate()
+  updateFocusModePageClass()
+}, { immediate: true })
 
 function updateMobileViewport() {
   mobileViewport.value = mobileViewportQuery.matches
@@ -195,7 +333,7 @@ watch(externalAiPrompt, (prompt) => {
   } catch {
     externalAiPromptStorageError.value = true
   }
-})
+}, { flush: 'sync' })
 
 function handleExternalAiPromptKeydown(event) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || !externalAiPrompt.value.trim()) return
@@ -230,10 +368,21 @@ function openPromptWithProvider(provider) {
 async function openPromptWithProviders(prompt, providers = AI_PROVIDERS) {
   externalAiPromptSearching.value = true
   try {
-    await openAiProviderTabs(prompt, providers)
-    showMessage(providers.length === 1
-      ? t('Copied your prompt and opened {provider}. Paste it there.').replace('{provider}', providers[0].name)
-      : t('Copied to clipboard and opened all 3 AI tabs. Paste in each tab.'))
+    const result = await openAiProviderTabs(prompt, providers)
+    if (!result?.copied) {
+      showMessage(t('Opened {opened} of {total} AI tabs, but clipboard copy failed. The helper may still send it; the prompt remains here for manual paste.')
+        .replace('{opened}', String(result?.opened || 0))
+        .replace('{total}', String(result?.total || providers.length)))
+    } else if (result.opened < result.total) {
+      showMessage(t('Opened {opened} of {total} AI tabs. The browser helper sends the prompt automatically; otherwise paste the copied prompt into each open tab.')
+        .replace('{opened}', String(result.opened))
+        .replace('{total}', String(result.total)))
+    } else {
+      showMessage(providers.length === 1
+        ? t('Opened {provider} and copied your prompt. The browser helper sends it automatically; without the helper, paste it there.')
+          .replace('{provider}', providers[0].name)
+        : t('Opened all 3 AI tabs and copied your prompt. The browser helper sends it automatically; without the helper, paste it in each tab.'))
+    }
   } catch {
     showMessage(providers.length === 1
       ? t('Could not open the AI or copy your prompt. Allow pop-ups and clipboard access, then try again.')
@@ -282,27 +431,7 @@ function openExternalAiTools(providers) {
     showMessage('Enter a prompt to continue.')
     return
   }
-
-  let openFailed = false
-  for (const provider of providers) {
-    try {
-      const tab = window.open(provider.url, '_blank')
-      if (!tab) {
-        openFailed = true
-      } else {
-        tab.opener = null
-      }
-    } catch {
-      openFailed = true
-    }
-  }
-
-  const copiedMessage = providers.length === 1
-    ? 'Prompt copied. Paste it into the AI tab, then send it there.'
-    : 'Prompt copied. Paste it into each AI tab, then send it there.'
-  copyTextToClipboard(prompt)
-    .then(() => showMessage(openFailed ? 'Could not open an AI tab. Allow pop-ups and try again.' : copiedMessage))
-    .catch(() => showMessage('Could not copy the prompt. It remains saved here; select it and copy it manually.'))
+  openPromptWithProviders(prompt, providers)
 }
 
 function go(name, articleId) {
@@ -331,8 +460,12 @@ function closeDialog() {
   dialog.value = null
 }
 
-async function openPostDialog() {
+async function openPostDialog(post = null) {
   if (postSaving.value) return
+  if (!post || typeof post.id !== 'string') post = null
+  editingPost.value = post
+  postEditText.value = post?.text || ''
+  postEditImage.value = post?.image ? { ...post.image } : null
   postDialogOpen.value = true
   emojiPickerOpen.value = false
   await nextTick()
@@ -345,13 +478,26 @@ function closePostDialog() {
   dictating.value = false
   postDialogOpen.value = false
   emojiPickerOpen.value = false
+  editingPost.value = null
+  postEditText.value = ''
+  postEditImage.value = null
+}
+
+function setActivePostText(value) {
+  if (editingPost.value) postEditText.value = value
+  else postText.value = value
+}
+
+function updateActivePostText(event) {
+  setActivePostText(event.target.value)
 }
 
 async function insertPostEmoji(emoji) {
   const textarea = postTextArea.value
-  const start = textarea?.selectionStart ?? postText.value.length
-  const end = textarea?.selectionEnd ?? postText.value.length
-  postText.value = `${postText.value.slice(0, start)}${emoji}${postText.value.slice(end)}`
+  const text = activePostText.value
+  const start = textarea?.selectionStart ?? text.length
+  const end = textarea?.selectionEnd ?? text.length
+  setActivePostText(`${text.slice(0, start)}${emoji}${text.slice(end)}`)
   emojiPickerOpen.value = false
   await nextTick()
   textarea?.focus()
@@ -378,21 +524,48 @@ function handlePostImage(event) {
     return
   }
   const reader = new FileReader()
-  reader.onload = () => { postImage.value = { src: String(reader.result), name: file.name } }
+  reader.onload = () => {
+    const image = { src: String(reader.result), name: file.name }
+    if (editingPost.value) postEditImage.value = image
+    else postImage.value = image
+  }
   reader.onerror = () => showMessage('Could not read that image.')
   reader.readAsDataURL(file)
 }
 
 async function submitPost() {
-  if (postSaving.value || (!postText.value.trim() && !postImage.value)) return
+  if (postSaving.value || (!activePostText.value.trim() && !activePostImage.value)) return
   if (dictating.value) recognition.value?.stop()
   dictating.value = false
+
+  if (editingPost.value) {
+    postSaving.value = true
+    try {
+      const saved = await persistPostChanges(editingPost.value.id, {
+        text: postEditText.value,
+        image: postEditImage.value,
+      })
+      if (!saved) {
+        showMessage('Could not save this post in this browser.')
+        return
+      }
+      postDialogOpen.value = false
+      editingPost.value = null
+      postEditText.value = ''
+      postEditImage.value = null
+      emojiPickerOpen.value = false
+      showMessage('Post updated in this browser.')
+    } finally {
+      postSaving.value = false
+    }
+    return
+  }
+
   const submittedText = postText.value
   const submittedImage = postImage.value
   const savedOffline = !navigator.onLine
   postSaving.value = true
   try {
-    await new Promise((resolve) => window.setTimeout(resolve, 3000))
     if (!await createPost({
       text: submittedText,
       image: submittedImage,
@@ -408,6 +581,26 @@ async function submitPost() {
   } finally {
     postSaving.value = false
   }
+}
+
+function togglePostOptions(postId) {
+  if (postMenuId.value === postId) {
+    postMenuId.value = ''
+    postStorageDetailsOpen.value = false
+    return
+  }
+  postMenuId.value = postId
+  postStorageDetailsOpen.value = false
+}
+
+function editPost(post) {
+  postMenuId.value = ''
+  openPostDialog(post)
+}
+
+async function checkPostStorageAvailability() {
+  postStorageDetailsOpen.value = true
+  await refreshBrowserStorageEstimate()
 }
 
 function toggleDictation() {
@@ -477,15 +670,43 @@ function togglePin(article) {
 }
 
 function commitBody(event) {
-  if (currentArticle.value) updateArticle(currentArticle.value.id, { body: sanitizeRichTextHtml(event.currentTarget.innerHTML) })
+  if (!currentArticle.value) return
+  const body = sanitizeRichTextHtml(event.currentTarget.innerHTML)
+  if (body === lastEditorBody) return
+  bodyUndoStack.value.push(lastEditorBody)
+  if (bodyUndoStack.value.length > 100) bodyUndoStack.value.shift()
+  bodyRedoStack.value = []
+  lastEditorBody = body
+  updateArticle(currentArticle.value.id, { body })
+}
+
+function restoreEditorBody(body) {
+  if (!currentArticle.value || body === currentArticle.value.body) return
+  lastEditorBody = body
+  updateArticle(currentArticle.value.id, { body })
+  nextTick(() => {
+    if (!editorElement.value) return
+    editorElement.value.innerHTML = richTextToHtml(body)
+    editorElement.value.focus()
+  })
+}
+
+function undoEditorBody() {
+  if (!bodyUndoStack.value.length || !currentArticle.value) return
+  bodyRedoStack.value.push(currentArticle.value.body)
+  restoreEditorBody(bodyUndoStack.value.pop())
+}
+
+function redoEditorBody() {
+  if (!bodyRedoStack.value.length || !currentArticle.value) return
+  bodyUndoStack.value.push(currentArticle.value.body)
+  restoreEditorBody(bodyRedoStack.value.pop())
 }
 
 function applyFormat(command, value = null) {
   editorElement.value?.focus()
   document.execCommand(command, false, value)
-  if (editorElement.value && currentArticle.value) {
-    updateArticle(currentArticle.value.id, { body: sanitizeRichTextHtml(editorElement.value.innerHTML) })
-  }
+  if (editorElement.value && currentArticle.value) commitBody({ currentTarget: editorElement.value })
 }
 
 function saveHighlight() {
@@ -517,22 +738,31 @@ function saveHighlight() {
 
 function openHighlightManager() {
   highlightDraft.value = null
+  highlightPreview.value = null
   highlightManagerView.value = 'list'
+}
+
+function previewHighlightCollection(collection) {
+  highlightPreview.value = collection
+  highlightManagerView.value = 'preview'
 }
 
 function closeHighlightManager() {
   if (highlightPhotosLoading.value) return
   highlightDraft.value = null
+  highlightPreview.value = null
   highlightManagerView.value = 'closed'
 }
 
 function startHighlightCollection() {
+  highlightPreview.value = null
   const collection = createHighlightCollection()
   highlightDraft.value = { ...collection, title: '', articleHighlights: [] }
   highlightManagerView.value = 'editor'
 }
 
 function editHighlightCollection(collection) {
+  highlightPreview.value = null
   highlightDraft.value = {
     ...collection,
     items: collection.items.map((item) => ({ ...item })),
@@ -709,6 +939,9 @@ function articleDate(article) {
 }
 
 watch(() => currentArticle.value?.id, async () => {
+  bodyUndoStack.value = []
+  bodyRedoStack.value = []
+  lastEditorBody = currentArticle.value?.body || ''
   await nextTick()
   if (editorElement.value) editorElement.value.innerHTML = richTextToHtml(currentArticle.value?.body || '')
 }, { immediate: true })
@@ -726,6 +959,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(messageTimer.value)
   recognition.value?.stop()
   mobileViewportQuery.removeEventListener('change', updateMobileViewport)
+  document.documentElement.classList.remove('writing-focus-mode')
 })
 </script>
 
@@ -745,7 +979,6 @@ onBeforeUnmount(() => {
         <ChevronRight :size="18" />
       </button>
     </section>
-
     <section
       class="composer-card surface-card"
       :aria-label="t('Create post')"
@@ -759,7 +992,7 @@ onBeforeUnmount(() => {
           class="composer-open-button"
           type="button"
           :aria-label="t('Write a post')"
-          @click="openPostDialog"
+          @click="openPostDialog()"
         >
           {{ composerPlaceholder }}
         </button>
@@ -768,7 +1001,7 @@ onBeforeUnmount(() => {
         <button
           class="text-button"
           type="button"
-          @click="openPostDialog"
+          @click="openPostDialog()"
         >
           <ImagePlus :size="17" /> {{ t('Photo') }}
         </button>
@@ -822,6 +1055,46 @@ onBeforeUnmount(() => {
           >
             <Copy :size="17" />
           </button>
+          <button
+            class="icon-button post-options-button"
+            type="button"
+            :aria-label="t('More post options')"
+            :aria-expanded="postMenuId === post.id"
+            @click="togglePostOptions(post.id)"
+          >
+            <MoreVertical :size="18" />
+          </button>
+        </div>
+        <div
+          v-if="postMenuId === post.id"
+          class="post-options-menu"
+          role="group"
+          :aria-label="t('Post options')"
+        >
+          <button
+            type="button"
+            @click="editPost(post)"
+          >
+            {{ t('Edit post') }}
+          </button>
+          <button
+            type="button"
+            @click="checkPostStorageAvailability"
+          >
+            {{ t('Check storage availability') }}
+          </button>
+          <div
+            v-if="postStorageDetailsOpen"
+            class="post-storage-details"
+            role="status"
+          >
+            <template v-if="browserStorageEstimate.status === 'ready'">
+              <strong>{{ t('Estimated available') }}: {{ formatStorageSize(Math.max(0, browserStorageEstimate.quota - browserStorageEstimate.usage)) }}</strong>
+              <small>{{ t('Used') }}: {{ formatStorageSize(browserStorageEstimate.usage) }} · {{ t('Estimated quota') }}: {{ formatStorageSize(browserStorageEstimate.quota) }}</small>
+              <small>{{ t('This is browser storage for this app, not device RAM.') }}</small>
+            </template>
+            <small v-else>{{ t(browserStorageEstimate.status === 'loading' ? 'Checking...' : 'This browser does not provide a storage estimate.') }}</small>
+          </div>
         </div>
         <p
           v-if="post.text"
@@ -844,6 +1117,7 @@ onBeforeUnmount(() => {
       :articles="workspace.articles"
       :language="language"
       @open-manager="openHighlightManager"
+      @preview-collection="previewHighlightCollection"
       @edit-collection="editHighlightCollection"
       @open-article="openArticle"
     />
@@ -962,6 +1236,7 @@ onBeforeUnmount(() => {
       :articles="workspace.articles"
       :language="language"
       @open-manager="openHighlightManager"
+      @preview-collection="previewHighlightCollection"
       @edit-collection="editHighlightCollection"
       @open-article="openArticle"
     />
@@ -1049,6 +1324,30 @@ onBeforeUnmount(() => {
           v-model="accessibility.outlineText"
           type="checkbox"
         > Outline text for contrast</label>
+        <div class="setting-subsection-heading">
+          <strong>{{ t('Colour and motion') }}</strong>
+          <small>{{ t('Adjust colour, blur, and movement in this app.') }}</small>
+        </div>
+        <label class="setting-checkbox"><input
+          v-model="accessibility.highContrast"
+          type="checkbox"
+        > {{ t('Make backgrounds and panels easier to see') }}</label>
+        <label class="setting-row"><span><strong>{{ t('Colour filter') }}</strong><small>{{ t('Applies a colour filter to this website only.') }}</small></span><select
+          v-model="accessibility.colorFilter"
+          :aria-label="t('Colour filter')"
+        ><option value="none">{{ t('Use original colours') }}</option><option value="invert">{{ t('Colour inversion') }}</option><option value="grayscale">{{ t('Grayscale') }}</option><option value="low-saturation">{{ t('Reduced saturation') }}</option></select></label>
+        <label class="setting-checkbox"><input
+          v-model="accessibility.reduceBlur"
+          type="checkbox"
+        > {{ t('Reduce blur effects') }}</label>
+        <label class="setting-checkbox"><input
+          v-model="accessibility.removeAnimations"
+          type="checkbox"
+        > {{ t('Remove animations') }}</label>
+        <label class="setting-checkbox"><input
+          v-model="accessibility.reduceMotion"
+          type="checkbox"
+        > {{ t('Reduce movement on the screen') }}</label>
         <div class="setting-row">
           <span><strong>Text-to-speech</strong><small>Use a voice available in this browser.</small></span><button
             class="button button-secondary"
@@ -1077,20 +1376,88 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </section>
+    <section class="surface-card settings-card browser-storage-card">
+      <div class="browser-storage-heading">
+        <div>
+          <h2>{{ t('Browser storage') }}</h2>
+          <p>{{ t('Estimated storage for this site on this device. The browser controls the quota.') }}</p>
+        </div>
+        <button
+          class="button button-secondary"
+          type="button"
+          :disabled="browserStorageEstimate.status === 'loading'"
+          @click="refreshBrowserStorageEstimate"
+        >
+          {{ t(browserStorageEstimate.status === 'loading' ? 'Checking...' : 'Refresh estimate') }}
+        </button>
+      </div>
+      <div
+        v-if="browserStorageEstimate.status === 'ready'"
+        class="browser-storage-metrics"
+      >
+        <div><small>{{ t('Used') }}</small><strong>{{ formatStorageSize(browserStorageEstimate.usage) }}</strong></div>
+        <div><small>{{ t('Estimated available') }}</small><strong>{{ formatStorageSize(Math.max(0, browserStorageEstimate.quota - browserStorageEstimate.usage)) }}</strong></div>
+        <div><small>{{ t('Estimated quota') }}</small><strong>{{ formatStorageSize(browserStorageEstimate.quota) }}</strong></div>
+        <progress
+          class="browser-storage-progress"
+          max="1"
+          :value="browserStorageUsageRatio"
+          :aria-label="t('Estimated browser storage used')"
+        />
+      </div>
+      <p
+        v-else-if="browserStorageEstimate.status === 'unavailable'"
+        class="browser-storage-unavailable"
+        role="status"
+      >
+        {{ t('This browser does not provide a storage estimate.') }}
+      </p>
+    </section>
   </div>
 
   <div
     v-else-if="page === 'editor'"
     class="page-wrap editor-page"
+    :class="{ 'is-focused': focusMode }"
   >
     <div class="page-heading page-heading-row">
-      <div><span class="eyebrow">{{ t('Writing workspace') }}</span><h1>{{ t('Article Editor') }}</h1><p>{{ t('Write and edit your article. Your draft is saved in this browser.') }}</p></div><button
-        class="button button-secondary"
-        type="button"
-        @click="go('articles')"
-      >
-        {{ t('Manage') }} {{ t('Articles') }}
-      </button>
+      <div class="editor-heading-copy">
+        <span class="eyebrow">{{ t('Writing workspace') }}</span>
+        <h1>{{ t('Article Editor') }}</h1>
+        <p>{{ t('Write and edit your article. Your draft is saved in this browser.') }}</p>
+      </div>
+      <div class="editor-heading-actions">
+        <button
+          class="button button-secondary editor-manage-button"
+          type="button"
+          @click="go('articles')"
+        >
+          {{ t('Manage') }} {{ t('Articles') }}
+        </button>
+        <button
+          class="button button-secondary focus-mode-toggle"
+          :class="{ 'is-active': focusMode }"
+          type="button"
+          :aria-pressed="focusMode"
+          :aria-label="t(focusMode ? 'Exit focus mode' : 'Focus mode')"
+          @click="focusMode = !focusMode"
+        >
+          <Minimize2
+            v-if="focusMode"
+            :size="17"
+          />
+          <Maximize2
+            v-else
+            :size="17"
+          />
+          <span>{{ t(focusMode ? 'Exit focus mode' : 'Focus mode') }}</span>
+          <span
+            v-if="focusMode"
+            class="focus-mode-indicator"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
     </div>
     <template v-if="currentArticle">
       <section class="surface-card editor-card">
@@ -1113,6 +1480,24 @@ onBeforeUnmount(() => {
           class="format-toolbar"
           :aria-label="t('Text formatting options')"
         >
+          <button
+            type="button"
+            :aria-label="t('Undo')"
+            :title="t('Undo')"
+            :disabled="!bodyUndoStack.length"
+            @click="undoEditorBody"
+          >
+            <Undo2 :size="17" />
+          </button>
+          <button
+            type="button"
+            :aria-label="t('Redo')"
+            :title="t('Redo')"
+            :disabled="!bodyRedoStack.length"
+            @click="redoEditorBody"
+          >
+            <Redo2 :size="17" />
+          </button>
           <button
             type="button"
             aria-label="Bold"
@@ -1159,49 +1544,58 @@ onBeforeUnmount(() => {
           :data-placeholder="t('Start writing your article here...')"
           @input="commitBody"
         />
+        <ReadAloudControls
+          :text="readAloudText"
+          :language="language"
+          :labels="readAloudLabels"
+        />
         <div class="editor-actions">
-          <button
-            class="button button-secondary"
-            type="button"
-            @click="openDialog('preview')"
-          >
-            Preview
-          </button>
-          <button
-            class="button button-secondary"
-            type="button"
-            @click="go('seo', currentArticle.id)"
-          >
-            SEO settings
-          </button>
-          <button
-            class="button button-secondary"
-            type="button"
-            @click="copyArticle(currentArticle)"
-          >
-            <Copy :size="16" /> Copy
-          </button>
-          <button
-            class="button button-secondary"
-            type="button"
-            @click="downloadArticle(currentArticle)"
-          >
-            Download .txt
-          </button>
-          <button
-            class="button button-secondary"
-            type="button"
-            @click="changePost(currentArticle.id, 'schedule')"
-          >
-            <Clock3 :size="16" /> Schedule
-          </button>
-          <button
-            class="button button-primary"
-            type="button"
-            @click="changePost(currentArticle.id, 'publish')"
-          >
-            <Send :size="16" /> Publish locally
-          </button>
+          <div class="editor-action-group editor-action-secondary">
+            <button
+              class="button button-secondary"
+              type="button"
+              @click="openDialog('preview')"
+            >
+              Preview
+            </button>
+            <button
+              class="button button-secondary"
+              type="button"
+              @click="go('seo', currentArticle.id)"
+            >
+              SEO settings
+            </button>
+            <button
+              class="button button-secondary"
+              type="button"
+              @click="copyArticle(currentArticle)"
+            >
+              <Copy :size="16" /> Copy
+            </button>
+            <button
+              class="button button-secondary"
+              type="button"
+              @click="downloadArticle(currentArticle)"
+            >
+              Download .txt
+            </button>
+          </div>
+          <div class="editor-action-group editor-action-primary">
+            <button
+              class="button button-secondary"
+              type="button"
+              @click="changePost(currentArticle.id, 'schedule')"
+            >
+              <Clock3 :size="16" /> Schedule
+            </button>
+            <button
+              class="button button-primary"
+              type="button"
+              @click="changePost(currentArticle.id, 'publish')"
+            >
+              <Send :size="16" /> Publish locally
+            </button>
+          </div>
         </div>
         <div class="highlight-tools">
           <h2>Save a highlight</h2>
@@ -1490,8 +1884,8 @@ onBeforeUnmount(() => {
     class="page-wrap narrow-page external-ai-page"
   >
     <div class="page-heading">
-      <span class="eyebrow">{{ t('External tools') }}</span>
-      <h1>{{ t('External AI tools') }}</h1>
+      <span class="eyebrow">{{ t('One prompt, three AI apps') }}</span>
+      <h1>{{ t('Multi-AI Search') }}</h1>
     </div>
     <section
       class="surface-card external-ai-prompt-card"
@@ -1499,7 +1893,7 @@ onBeforeUnmount(() => {
     >
       <div class="external-ai-prompt-heading">
         <h2 id="external-ai-prompt-heading">
-          {{ t('Prompt canvas') }}
+          {{ t('Your prompt') }}
         </h2>
         <span
           class="external-ai-saved-state"
@@ -1509,6 +1903,9 @@ onBeforeUnmount(() => {
           {{ externalAiPromptStorageError ? t('Could not save') : t('Saved in this browser') }}
         </span>
       </div>
+      <p class="external-ai-intro">
+        {{ t('Send one prompt to Gemini, ChatGPT and Meta AI. With the browser helper installed, it is submitted automatically; otherwise the prompt is copied so you can paste it.') }}
+      </p>
       <label
         class="visually-hidden"
         for="external-ai-prompt"
@@ -1550,7 +1947,7 @@ onBeforeUnmount(() => {
           class="button button-primary external-ai-search-button ai-hover-button"
           type="button"
           :disabled="externalAiPromptSearching || !externalAiPrompt.trim()"
-          :aria-label="t(externalAiPromptSearching ? (mobileViewport ? 'Opening AI...' : 'Opening 3 AIs...') : (mobileViewport ? 'Choose an AI' : 'Open in all 3 AIs'))"
+          :aria-label="t(externalAiPromptSearching ? (mobileViewport ? 'Opening AI...' : 'Opening 3 AIs...') : (mobileViewport ? 'Choose an AI' : 'Send to all 3 AIs'))"
           :aria-busy="externalAiPromptSearching"
           @click="openPromptInAllAiTools"
         >
@@ -1560,7 +1957,7 @@ onBeforeUnmount(() => {
           </template>
           <template v-else>
             <Search :size="16" />
-            {{ t(mobileViewport ? 'Choose an AI' : 'Open in all 3 AIs') }}
+            {{ t(mobileViewport ? 'Choose an AI' : 'Send to all 3 AIs') }}
           </template>
         </button>
       </div>
@@ -1633,7 +2030,7 @@ onBeforeUnmount(() => {
     >
       <div class="post-modal-heading">
         <h2 id="post-dialog-title">
-          {{ t('Create post') }}
+          {{ t(editingPost ? 'Edit post' : 'Create post') }}
         </h2>
         <button
           class="icon-button"
@@ -1654,27 +2051,42 @@ onBeforeUnmount(() => {
       </div>
       <textarea
         ref="postTextArea"
-        v-model="postText"
+        :value="activePostText"
         class="post-modal-textarea"
         rows="5"
         :placeholder="composerPlaceholder"
         :aria-label="t('Write your post')"
         :disabled="postSaving"
+        @input="updateActivePostText"
       />
+      <p
+        v-if="postDraftStorageError"
+        class="post-local-note"
+        role="alert"
+      >
+        {{ t('Could not save your post draft in this browser.') }}
+      </p>
+      <p
+        v-else
+        class="post-local-note"
+        aria-live="polite"
+      >
+        {{ t(editingPost ? 'Post changes will be saved when you choose Save changes.' : 'Your post draft is saved as you type.') }}
+      </p>
       <div
-        v-if="postImage"
+        v-if="activePostImage"
         class="selected-image post-modal-image"
       >
         <img
-          :src="postImage.src"
-          :alt="postImage.name || t('Post image')"
+          :src="activePostImage.src"
+          :alt="activePostImage.name || t('Post image')"
         >
         <button
           class="icon-button"
           type="button"
           :aria-label="t('Remove image')"
           :disabled="postSaving"
-          @click="postImage = null"
+          @click="editingPost ? postEditImage = null : postImage = null"
         >
           <X :size="16" />
         </button>
@@ -1686,7 +2098,7 @@ onBeforeUnmount(() => {
         aria-live="polite"
       >
         <LoadingDots />
-        <span>{{ t('Posting...') }}</span>
+        <span>{{ t('Saving post...') }}</span>
       </div>
       <div class="post-add-toolbar">
         <strong>{{ t('Add to your post') }}</strong>
@@ -1745,7 +2157,7 @@ onBeforeUnmount(() => {
         :disabled="postSaving || (!postText.trim() && !postImage)"
         @click="submitPost"
       >
-        {{ t('Post') }}
+        {{ t(editingPost ? 'Save changes' : 'Post') }}
       </button>
       <p class="post-local-note">
         {{ t('This creates a local post in this browser only.') }}
@@ -1795,34 +2207,45 @@ onBeforeUnmount(() => {
         v-if="highlights.length"
         class="highlight-manager-list"
       >
-        <button
+        <div
           v-for="collection in highlights"
           :key="collection.id"
           class="highlight-manager-item"
-          type="button"
-          @click="editHighlightCollection(collection)"
         >
-          <img
-            v-if="collection.items[0]?.src"
-            :src="collection.items[0].src"
-            :alt="collection.items[0].name || t('Highlight image')"
+          <button
+            class="highlight-manager-item-preview"
+            type="button"
+            @click="previewHighlightCollection(collection)"
           >
-          <span
-            v-else
-            class="highlight-manager-placeholder"
-            aria-hidden="true"
+            <img
+              v-if="collection.items[0]?.src"
+              :src="collection.items[0].src"
+              :alt="collection.items[0].name || t('Highlight image')"
+            >
+            <span
+              v-else
+              class="highlight-manager-placeholder"
+              aria-hidden="true"
+            >
+              <ImagePlus :size="20" />
+            </span>
+            <span class="highlight-manager-item-copy">
+              <strong>{{ collection.title }}</strong>
+              <small>{{ collection.items.length }} {{ t('Photos') }} · {{ (collection.articleHighlights || []).length }} {{ t('Saved quotes') }}</small>
+            </span>
+            <ChevronRight
+              :size="18"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            class="button button-secondary highlight-manager-edit"
+            type="button"
+            @click="editHighlightCollection(collection)"
           >
-            <ImagePlus :size="20" />
-          </span>
-          <span class="highlight-manager-item-copy">
-            <strong>{{ collection.title }}</strong>
-            <small>{{ collection.items.length }} {{ t('Photos') }} · {{ (collection.articleHighlights || []).length }} {{ t('Saved quotes') }}</small>
-          </span>
-          <ChevronRight
-            :size="18"
-            aria-hidden="true"
-          />
-        </button>
+            {{ t('Edit') }}
+          </button>
+        </div>
       </div>
       <p
         v-else
@@ -1830,6 +2253,77 @@ onBeforeUnmount(() => {
       >
         {{ t('No highlights yet') }}
       </p>
+    </section>
+  </div>
+
+  <div
+    v-if="highlightManagerView === 'preview' && highlightPreview"
+    class="dialog-backdrop"
+    @click.self="closeHighlightManager"
+  >
+    <section
+      class="app-dialog surface-card highlight-preview-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="highlight-preview-title"
+    >
+      <div class="dialog-title-row">
+        <h2 id="highlight-preview-title">
+          {{ highlightPreview.title }}
+        </h2>
+        <button
+          class="icon-button"
+          type="button"
+          :aria-label="t('Close dialog')"
+          @click="closeHighlightManager"
+        >
+          <X :size="18" />
+        </button>
+      </div>
+      <p class="highlight-preview-hint">
+        {{ t('Preview') }}
+      </p>
+      <div
+        v-if="highlightPreview.items.length"
+        class="highlight-preview-gallery"
+      >
+        <figure
+          v-for="image in highlightPreview.items"
+          :key="image.id"
+          class="highlight-preview-image"
+        >
+          <img
+            :src="image.src"
+            :alt="image.name || t('Highlight image')"
+          >
+          <figcaption v-if="image.name">
+            {{ image.name }}
+          </figcaption>
+        </figure>
+      </div>
+      <blockquote
+        v-for="quote in highlightPreview.articleHighlights || []"
+        :key="quote.id"
+        class="highlight-preview-quote"
+      >
+        <p>{{ quote.text }}</p><cite>{{ quote.articleTitle }}</cite>
+      </blockquote>
+      <div class="dialog-actions">
+        <button
+          class="button button-secondary"
+          type="button"
+          @click="openHighlightManager"
+        >
+          {{ t('Back') }}
+        </button>
+        <button
+          class="button button-primary"
+          type="button"
+          @click="editHighlightCollection(highlightPreview)"
+        >
+          {{ t('Edit') }}
+        </button>
+      </div>
     </section>
   </div>
 

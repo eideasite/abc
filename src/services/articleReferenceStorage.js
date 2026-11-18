@@ -18,18 +18,6 @@ function loadArticleIds(key) {
 function saveArticleIds(key, articleIds) {
   if (!Array.isArray(articleIds) || articleIds.some((id) => typeof id !== 'string' || !id.trim())) return false
   try {
-    const existing = localStorage.getItem(key)
-    if (existing !== null) {
-      let parsed
-      try {
-        parsed = JSON.parse(existing)
-      } catch {
-        return false
-      }
-      if (!Array.isArray(parsed)
-        || parsed.some((id) => typeof id !== 'string' || !id.trim())
-        || normalizeArticleIds(parsed).length !== parsed.length) return false
-    }
     localStorage.setItem(key, JSON.stringify(normalizeArticleIds(articleIds)))
     return true
   } catch {

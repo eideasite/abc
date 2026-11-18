@@ -1,9 +1,8 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 import { Search } from 'lucide-vue-next'
 import LoadingDots from './LoadingDots.vue'
-import AiProviderPicker from './AiProviderPicker.vue'
-import { AI_PROVIDERS, openAiProviderTabs } from '../../services/aiSearch.js'
+import { aiSearchQuery, openGoogleAiModeSearch } from '../../services/aiSearch.js'
 
 defineOptions({ inheritAttrs: false })
 
@@ -16,11 +15,7 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  loadingLabel: {
-    type: String,
-    required: true,
-  },
-  singleLoadingLabel: {
+  submitLabel: {
     type: String,
     required: true,
   },
@@ -28,82 +23,41 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  singleSuccessLabel: {
-    type: String,
-    required: true,
-  },
-  singleErrorLabel: {
-    type: String,
-    required: true,
-  },
-  pickerTitle: {
-    type: String,
-    required: true,
-  },
-  pickerDescription: {
-    type: String,
-    required: true,
-  },
-  cancelLabel: {
-    type: String,
-    required: true,
-  },
-  submitLabel: {
-    type: String,
-    required: true,
-  },
-  mobileSubmitLabel: {
+  loadingLabel: {
     type: String,
     required: true,
   },
 })
 
-const query = ref('')
+const query = aiSearchQuery
 const searching = ref(false)
-const searchingSingle = ref(false)
 const searchError = ref('')
 const searchStatus = ref('')
-const providerPickerOpen = ref(false)
-const mobileViewport = ref(window.matchMedia('(max-width: 700px)').matches)
-const mobileViewportQuery = window.matchMedia('(max-width: 700px)')
 
-function updateMobileViewport() {
-  mobileViewport.value = mobileViewportQuery.matches
-}
-
-onMounted(() => mobileViewportQuery.addEventListener('change', updateMobileViewport))
-onUnmounted(() => mobileViewportQuery.removeEventListener('change', updateMobileViewport))
-
-async function searchGoogleAi(provider) {
+function searchGoogleAi() {
   if (searching.value) return
   const searchQuery = query.value
   if (!searchQuery.trim()) return
 
-  providerPickerOpen.value = false
   searching.value = true
-  searchingSingle.value = Boolean(provider)
   searchError.value = ''
   searchStatus.value = ''
   try {
-    await openAiProviderTabs(searchQuery, provider ? [provider] : AI_PROVIDERS)
-    query.value = ''
-    searchStatus.value = provider
-      ? props.singleSuccessLabel.replace('{provider}', provider.name)
-      : props.successLabel
+    if (openGoogleAiModeSearch(searchQuery)) {
+      query.value = ''
+      searchStatus.value = props.successLabel
+    } else {
+      searchError.value = props.errorLabel
+    }
   } catch {
-    searchError.value = provider ? props.singleErrorLabel : props.errorLabel
+    searchError.value = props.errorLabel
   } finally {
     searching.value = false
-    searchingSingle.value = false
   }
 }
 
 function submitSearch() {
   if (!query.value.trim() || searching.value) return
-  if (window.matchMedia('(max-width: 700px)').matches) {
-    providerPickerOpen.value = true
-    return
-  }
   searchGoogleAi()
 }
 </script>
@@ -132,11 +86,11 @@ function submitSearch() {
       :disabled="searching || !query.trim()"
     >
       <template v-if="searching">
-        {{ searchingSingle ? props.singleLoadingLabel : props.loadingLabel }}
+        {{ props.loadingLabel }}
         <LoadingDots />
       </template>
       <template v-else>
-        {{ mobileViewport ? props.mobileSubmitLabel : props.submitLabel }}
+        {{ props.submitLabel }}
       </template>
     </button>
     <span
@@ -148,13 +102,4 @@ function submitSearch() {
       {{ searchError || searchStatus }}
     </span>
   </form>
-  <AiProviderPicker
-    v-if="providerPickerOpen"
-    :providers="AI_PROVIDERS"
-    :title="props.pickerTitle"
-    :description="props.pickerDescription"
-    :cancel-label="props.cancelLabel"
-    @select="searchGoogleAi"
-    @cancel="providerPickerOpen = false"
-  />
 </template>
